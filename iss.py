@@ -5,14 +5,17 @@ __author__ = 'jmsMaupin1'
 import requests
 import json
 import turtle
+import time
+
 
 def astronauts_in_space():
     res = requests.get('http://api.open-notify.org/astros.json')
     res.raise_for_status()
     astro_dict = json.loads(res.text)['people']
-    
+
     for astro in astro_dict:
         print('{} is on the {}'.format(astro['name'], astro['craft']))
+
 
 def get_iss_location():
     res = requests.get('http://api.open-notify.org/iss-now.json')
@@ -20,87 +23,53 @@ def get_iss_location():
     return json.loads(res.text)['iss_position']
 
 
-def turtle_iss_time():
-    iss_location = get_iss_location()
-
+def draw_iss_position():
     wn = turtle.Screen()
     wn.addshape('iss.gif')
     wn.bgpic('map.gif')
     wn.setup(720, 360)
-    wn.setworldcoordinates(-180, -90, 180, 90)
+    wn.setworldcoordinates(-90, -180, 90, 180)
     wn.title('turtle time!')
 
     pen = turtle.Turtle()
     pen.shape('iss.gif')
-    pen.penup()
-    pen.goto(float(iss_location['latitude']), float(iss_location['longitude']))
+    while True:
+        iss_location = get_iss_location()
+        print(iss_location)
+        pen.penup()
+        pen.goto(
+            float(iss_location['latitude']),
+            float(iss_location['longitude'])
+        )
+        time.sleep(5)
     turtle.done()
 
 
-def draw_n_gon_with_functions(n, length, pen, function_list):
-    rotation = 360 / n
-    for i in range(n):
-        pen.forward(length)
-        if callable(function_list[i]):
-            function_list[i](n, length, pen)
-        pen.left(rotation)
+def next_time_over(lat, long):
+    api_string = 'http://api.open-notify.org/iss-pass.json?lat={}&lon={}'
+    print_str = 'The ISS will at your location on {} for {} mins and {} secs'
 
-def draw_n_gon(n, length, pen):
-    if n < 3:
-        pen.circle(length)
-    else:
-        rotation = 360 / n
-        for _ in range(n):
-            pen.forward(length)
-            pen.left(rotation)
+    res = requests.get(api_string.format(lat, long))
+    res.raise_for_status()
+    over_times = json.loads(res.text)['response']
 
-def turtle_time():
-    wn = turtle.Screen()
-    wn.bgcolor('light green')
-    wn.title('turtle time!')
+    for t in over_times:
+        date_time = time.ctime(t['risetime'])
+        duration_minutes = int(t['duration']) / 60
+        duration_seconds = int(t['duration']) % 60
 
-    pen = turtle.Turtle()
-    pen.fillcolor(0, 0, 0)
-    pen.speed(0)
+        print(print_str.format(
+            date_time,
+            duration_minutes,
+            duration_seconds
+        ))
 
-    rotation = 10
-
-    embeded_triangle_func_list = [
-        lambda n, length, pen: draw_n_gon(2, length, pen),
-        lambda n, length, pen: draw_n_gon(2, length, pen),
-        lambda n, length, pen: draw_n_gon(2, length, pen)
-    ]
-
-    embedded_square_func_list = [
-        lambda n, length, pen: draw_n_gon_with_functions(3, length, pen, embeded_triangle_func_list),
-        lambda n, length, pen: draw_n_gon_with_functions(3, length, pen, embeded_triangle_func_list),
-        lambda n, length, pen: draw_n_gon_with_functions(3, length, pen, embeded_triangle_func_list),
-        lambda n, length, pen: draw_n_gon_with_functions(3, length, pen, embeded_triangle_func_list),
-    ]
-
-    func_list = [
-        lambda n, length, pen: draw_n_gon_with_functions(4, length, pen, embedded_square_func_list),
-        lambda n, length, pen: draw_n_gon_with_functions(3, length, pen, embeded_triangle_func_list),
-        lambda n, length, pen: draw_n_gon_with_functions(4, length, pen, embedded_square_func_list),
-        lambda n, length, pen: draw_n_gon_with_functions(3, length, pen, embeded_triangle_func_list),
-        lambda n, length, pen: draw_n_gon_with_functions(4, length, pen, embedded_square_func_list),
-        lambda n, length, pen: draw_n_gon_with_functions(3, length, pen, embeded_triangle_func_list),
-        lambda n, length, pen: draw_n_gon_with_functions(4, length, pen, embedded_square_func_list),
-        lambda n, length, pen: draw_n_gon_with_functions(3, length, pen, embeded_triangle_func_list),
-        lambda n, length, pen: draw_n_gon_with_functions(4, length, pen, embedded_square_func_list),
-        lambda n, length, pen: draw_n_gon_with_functions(3, length, pen, embeded_triangle_func_list),
-        lambda n, length, pen: draw_n_gon_with_functions(4, length, pen, embedded_square_func_list),
-        lambda n, length, pen: draw_n_gon_with_functions(3, length, pen, embeded_triangle_func_list),
-    ]
-
-    for _ in range(360 / rotation):
-        
-        draw_n_gon_with_functions(12, 100, pen, func_list)
-        pen.right(rotation)
-    turtle.done()
 
 def main():
-    turtle_iss_time()
+    astronauts_in_space()
+    next_time_over(lat=39.7684, long=86.1581)
+
+    draw_iss_position()
 
 
 if __name__ == '__main__':
